@@ -346,11 +346,31 @@ class XiaoMusicDevice:
         self.device.playlist2music[self.device.cur_playlist] = name
         cur_playlist = self.device.cur_playlist
         self.log.info(f"cur_music {self.get_cur_music()}")
-        url, _ = await self.xiaomusic.music_library.get_music_url(name)
-        await self.group_force_stop_xiaoai()
+
+        # 并行执行：解析音乐URL、获取audio_id（如需要）、停止小爱播放
+        # 使用 return_exceptions=True 确保停止操作不被取消
+        need_audio_id = self.config.use_music_api or self.config.continue_play
+        if need_audio_id:
+            url_result, audio_id, _ = await asyncio.gather(
+                self.xiaomusic.music_library.get_music_url(name),
+                self._get_audio_id(name),
+                self.group_force_stop_xiaoai(),
+                return_exceptions=True,
+            )
+        else:
+            url_result, _ = await asyncio.gather(
+                self.xiaomusic.music_library.get_music_url(name),
+                self.group_force_stop_xiaoai(),
+                return_exceptions=True,
+            )
+            audio_id = None
+        # 如果获取URL失败，抛出异常（与原行为一致）
+        if isinstance(url_result, Exception):
+            raise url_result
+        url, _ = url_result
         self.log.info(f"播放 {url}")
 
-        results = await self.group_player_play(url, name)
+        results = await self.group_player_play(url, name, audio_id=audio_id)
         if all(ele is None for ele in results):
             self.log.info(f"播放 {name} 失败. 失败次数: {self._play_failed_cnt}")
             await asyncio.sleep(1)
@@ -420,11 +440,32 @@ class XiaoMusicDevice:
     async def force_stop_xiaoai(self, device_id):
         """强制停止小爱播放"""
         try:
-            ret = await self.auth_manager.mina_service.player_pause(device_id)
-            self.log.info(
-                f"force_stop_xiaoai player_pause device_id:{device_id} ret:{ret}"
-            )
-            await self.stop_if_xiaoai_is_playing(device_id)
+            if self.config.enable_force_stop:
+                if self.config.fast_stop_mode:
+                    # 并行发送 pause + stop，最快速度打断小爱
+                    results = await asyncio.gather(
+                        self.auth_manager.mina_service.player_pause(device_id),
+                        self.auth_manager.mina_service.player_stop(device_id),
+                        return_exceptions=True,
+                    )
+                    for r in results:
+                        if isinstance(r, Exception):
+                            self.log.warning(f"fast_stop_mode error: {r}")
+                    self.log.info(
+                        f"force_stop_xiaoai fast_stop_mode device_id:{device_id}"
+                    )
+                else:
+                    # 直接发 stop，跳过状态检查
+                    ret = await self.auth_manager.mina_service.player_stop(device_id)
+                    self.log.info(
+                        f"force_stop_xiaoai player_stop device_id:{device_id} ret:{ret}"
+                    )
+            else:
+                ret = await self.auth_manager.mina_service.player_pause(device_id)
+                self.log.info(
+                    f"force_stop_xiaoai player_pause device_id:{device_id} ret:{ret}"
+                )
+                await self.stop_if_xiaoai_is_playing(device_id)
         except Exception as e:
             self.log.warning(f"Execption {e}")
 
@@ -694,23 +735,25 @@ class XiaoMusicDevice:
         except Exception as e:
             self.log.exception(f"edge-tts 播放失败: {e}")
 
-    async def group_player_play(self, url, name=""):
+    async def group_player_play(self, url, name="", audio_id=None):
         """同一组设备播放"""
         device_id_list = self.xiaomusic.device_manager.get_group_device_id_list(
             self.group_name
         )
         tasks = [
-            self.play_one_url(device_id, url, name) for device_id in device_id_list
+            self.play_one_url(device_id, url, name, audio_id=audio_id)
+            for device_id in device_id_list
         ]
         results = await asyncio.gather(*tasks)
         self.log.info(f"group_player_play {url} {device_id_list} {results}")
         return results
 
-    async def play_one_url(self, device_id, url, name):
+    async def play_one_url(self, device_id, url, name, audio_id=None):
         """在单个设备上播放URL"""
         ret = None
         try:
-            audio_id = await self._get_audio_id(name)
+            if audio_id is None:
+                audio_id = await self._get_audio_id(name)
             if self.config.continue_play:
                 ret = await self.auth_manager.mina_service.play_by_music_url(
                     device_id, url, _type=1, audio_id=audio_id

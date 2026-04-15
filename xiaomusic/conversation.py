@@ -138,16 +138,12 @@ class ConversationPoller:
 
                 start = time.perf_counter()
                 await self.polling_event.wait()
-                if self.config.pull_ask_sec <= 1:
-                    if (d := time.perf_counter() - start) < 1:
-                        await asyncio.sleep(1 - d)
-                else:
-                    sleep_sec = 0
-                    while True:
-                        await asyncio.sleep(1)
-                        sleep_sec = sleep_sec + 1
-                        if sleep_sec >= self.config.pull_ask_sec:
-                            break
+                sleep_target = self.config.pull_ask_sec
+                if sleep_target > 0:
+                    elapsed = time.perf_counter() - start
+                    remaining = sleep_target - elapsed
+                    if remaining > 0:
+                        await asyncio.sleep(remaining)
         except asyncio.CancelledError:
             self.log.info("Polling task cancelled")
             raise

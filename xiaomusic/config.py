@@ -161,6 +161,9 @@ class Config:
     enable_force_stop: bool = (
         os.getenv("XIAOMUSIC_ENABLE_FORCE_STOP", "false").lower() == "true"
     )
+    fast_stop_mode: bool = (
+        os.getenv("XIAOMUSIC_FAST_STOP_MODE", "false").lower() == "true"
+    )
     devices: dict[str, Device] = field(default_factory=dict)
     group_list: str = os.getenv(
         "XIAOMUSIC_GROUP_LIST", ""
@@ -180,7 +183,7 @@ class Config:
     file_watch_debounce: int = int(
         os.getenv("XIAOMUSIC_FILE_WATCH_DEBOUNCE", 10)
     )  # 监控刷新延迟时间(秒)
-    pull_ask_sec: int = int(os.getenv("XIAOMUSIC_PULL_ASK_SEC", "1"))
+    pull_ask_sec: float = float(os.getenv("XIAOMUSIC_PULL_ASK_SEC", "1"))
     enable_pull_ask: bool = (
         os.getenv("XIAOMUSIC_ENABLE_PULL_ASK", "false").lower() == "true"
     )
