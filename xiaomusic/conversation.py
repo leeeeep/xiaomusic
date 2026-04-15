@@ -79,14 +79,13 @@ class ConversationPoller:
 
                     query = new_record.get("query", "").strip()
                     did = new_record.get("did", "").strip()
-                    await do_check_cmd_callback(did, query, False)
-
-                    answer = new_record.get("answer")
+                    answer = new_record.get("answer", "")
                     answers = new_record.get("answers", [{}])
                     if answers:
                         answer = answers[0].get("tts", {}).get("text", "").strip()
-                        await reset_timer_callback(len(answer), did)
-                        self.log.debug(f"query:{query} did:{did} answer:{answer}")
+                    await do_check_cmd_callback(did, query, False, answer=answer)
+                    await reset_timer_callback(len(answer), did)
+                    self.log.debug(f"query:{query} did:{did} answer:{answer}")
             except asyncio.CancelledError:
                 self.log.info("Conversation loop cancelled, cleaning up...")
                 task.cancel()

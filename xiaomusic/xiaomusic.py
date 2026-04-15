@@ -260,7 +260,9 @@ class XiaoMusic:
     # 匹配命令
     async def do_check_cmd(self, did="", query="", ctrl_panel=True, **kwargs):
         """检查并执行命令（委托给 command_handler）"""
-        return await self.command_handler.do_check_cmd(did, query, ctrl_panel, **kwargs)
+        return await self.command_handler.do_check_cmd(
+            did, query, ctrl_panel, **kwargs
+        )
 
     # 重置计时器
     async def reset_timer_when_answer(self, answer_length, did):

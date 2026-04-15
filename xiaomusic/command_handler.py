@@ -46,9 +46,10 @@ class CommandHandler:
             did: 设备ID
             query: 用户查询/命令
             ctrl_panel: 是否来自控制面板
-            **kwargs: 其他参数
+            **kwargs: 其他参数，可包含 answer（小爱官方回答）
         """
-        self.log.info(f"收到消息:{query} 控制面板:{ctrl_panel} did:{did}")
+        answer = kwargs.get("answer", "")
+        self.log.info(f"收到消息:{query} 控制面板:{ctrl_panel} did:{did} answer:{answer}")
 
         # 记录最后一条命令
         self.last_cmd = query
@@ -58,7 +59,15 @@ class CommandHandler:
             # 匹配命令
             opvalue, oparg = self.match_cmd(device, query, ctrl_panel)
             if not opvalue:
-                # 未匹配到命令，等待后检查是否需要重播
+                # 未匹配到命令时，检查小爱回答是否包含停止语义
+                if answer and device.is_playing:
+                    if self._is_stop_answer(answer):
+                        self.log.info(
+                            f"小爱回答包含停止语义，自动停止播放 answer:{answer}"
+                        )
+                        await self.xiaomusic.stop(did=did, arg1="notts")
+                        return
+                # 等待后检查是否需要重播
                 await asyncio.sleep(1)
                 await device.check_replay()
                 return
@@ -171,3 +180,21 @@ class CommandHandler:
             or opvalue in active_cmd_arr
         ):
             return opvalue
+
+    # 小爱官方回答中包含这些关键词时，视为停止/暂停语义
+    # 仅匹配小爱对播放控制的典型回复，避免误匹配其他场景
+    _STOP_ANSWER_KEYWORDS = ("已暂停", "暂停播放", "已停止", "停止播放", "已关", "关闭")
+
+    def _is_stop_answer(self, answer):
+        """检查小爱官方回答是否包含停止/暂停语义
+
+        当用户说"暂停"/"停止"时，小爱官方会先处理并回复包含暂停/停止语义的文本。
+        通过检测这些语义，xiaomusic 可以自动同步停止状态。
+
+        Args:
+            answer: 小爱官方回答文本
+
+        Returns:
+            bool: 是否包含停止语义
+        """
+        return any(kw in answer for kw in self._STOP_ANSWER_KEYWORDS)

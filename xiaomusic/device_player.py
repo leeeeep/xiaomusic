@@ -918,12 +918,12 @@ class XiaoMusicDevice:
         """停止播放"""
         self._last_cmd = "stop"
         self.is_playing = False
+        # 先取消定时器，防止在TTS等待期间定时器触发导致继续播放
+        await self.cancel_group_next_timer()
+        await self.group_force_stop_xiaoai()
         if arg1 != "notts":
             await self.do_tts(self.config.stop_tts_msg)
             await asyncio.sleep(3)  # 等它说完
-        # 取消组内所有的下一首歌曲的定时器
-        await self.cancel_group_next_timer()
-        await self.group_force_stop_xiaoai()
         self.log.info("stop now")
 
     async def group_force_stop_xiaoai(self):
