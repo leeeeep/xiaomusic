@@ -789,7 +789,7 @@ $.get("/getsetting", function (data, status) {
     if (cur_device) {
       deviceOptions.push({
         value: value,
-        text: cur_device.name,
+        text: cur_device.alias || cur_device.name,
       });
 
       if (value === did) {

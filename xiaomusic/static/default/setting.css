@@ -1179,6 +1179,25 @@ hr {
   border-color: #007bff;
 }
 
+/* 设备别名输入样式 */
+.alias-container {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 10px;
+  gap: 5px;
+}
+.alias-label {
+  font-size: 12px;
+  color: #666;
+}
+.device-alias-input {
+  width: 120px;
+  padding: 2px 6px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 12px;
+}
+
 /* Material Icons 字体 */
 @font-face {
   font-family: "Material Icons";

@@ -78,10 +78,16 @@ class Device:
     device_id: str = ""
     hardware: str = ""
     name: str = ""
+    alias: str = ""
     play_type: int = PLAY_TYPE_RND
     cur_music: str = ""
     cur_playlist: str = ""
     playlist2music: dict[str, str] = field(default_factory=dict)
+
+    @property
+    def display_name(self) -> str:
+        """显示名称：优先使用别名，否则使用原始名称"""
+        return self.alias if self.alias else self.name
 
 
 @dataclass
@@ -168,6 +174,9 @@ class Config:
     group_list: str = os.getenv(
         "XIAOMUSIC_GROUP_LIST", ""
     )  # did1:group_name,did2:group_name
+    alias_list: str = os.getenv(
+        "XIAOMUSIC_ALIAS_LIST", ""
+    )  # did1:别名1,did2:别名2
     remove_id3tag: bool = (
         os.getenv("XIAOMUSIC_REMOVE_ID3TAG", "false").lower() == "true"
     )

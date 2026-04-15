@@ -9,11 +9,13 @@ from fastapi import (
 )
 
 from xiaomusic.api.dependencies import (
+    config,
     log,
     verification,
     xiaomusic,
 )
 from xiaomusic.api.models import (
+    DeviceAlias,
     Did,
     DidCmd,
     DidVolume,
@@ -132,3 +134,26 @@ async def stop(data: Did):
     except Exception as e:
         log.warning(f"Execption {e}")
     return {"ret": "OK"}
+
+
+@router.post("/device/alias")
+async def update_device_alias(data: DeviceAlias):
+    """更新设备别名"""
+    did = data.did
+    alias = data.alias
+    if not did:
+        return {"ret": "Missing did"}
+
+    if did not in config.devices:
+        return {"ret": "Device not found"}
+
+    config.devices[did].alias = alias
+    log.info(f"Updated alias for device {did}: '{alias}'")
+
+    # 刷新设备分组（别名影响默认组名）
+    xiaomusic.device_manager._update_devices()
+
+    # 持久化配置（必须在 _update_devices 之后，否则 save 会用旧的 device 覆盖）
+    xiaomusic.save_cur_config()
+
+    return {"ret": "OK", "did": did, "alias": alias}

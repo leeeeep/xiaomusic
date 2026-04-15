@@ -15,6 +15,7 @@ from miservice import MiAccount, MiIOService, MiNAService
 
 from xiaomusic.config import Device
 from xiaomusic.const import COOKIE_TEMPLATE
+from xiaomusic.utils.text_utils import parse_str_to_dict
 from xiaomusic.utils.system_utils import (
     get_random,
     parse_cookie_string,
@@ -158,6 +159,16 @@ class AuthManager:
                     device.name = name
                     devices[did] = device
             self.config.devices = devices
+
+            # 应用 alias_list 环境变量（仅在 alias 为空时，UI 设置的别名优先）
+            if self.config.alias_list:
+                alias_map = parse_str_to_dict(
+                    self.config.alias_list, d1=",", d2=":"
+                )
+                for did, alias in alias_map.items():
+                    if did in devices and alias and not devices[did].alias:
+                        devices[did].alias = alias
+
             self.log.info(f"选中的设备: {devices}")
             return devices
         except Exception as e:

@@ -3879,7 +3879,7 @@
       };
       createOpt("本机", "");
       for (const key in devicesMap) {
-        createOpt(devicesMap[key].name, devicesMap[key].did);
+        createOpt(devicesMap[key].alias || devicesMap[key].name, devicesMap[key].did);
       }
     }
 

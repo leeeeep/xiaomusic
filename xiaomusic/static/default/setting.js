@@ -112,7 +112,7 @@ $(function () {
     });
   };
 
-  function updateCheckbox(selector, mi_did, device_list, accountPassValid) {
+  function updateCheckbox(selector, mi_did, device_list, accountPassValid, configDevices) {
     // 清除现有的内容
     $(selector).empty();
 
@@ -131,6 +131,7 @@ $(function () {
       var did = device.miotDID;
       var hardware = device.hardware;
       var name = device.name;
+      var alias = (configDevices && configDevices[did]) ? (configDevices[did].alias || "") : "";
       // 创建复选框元素
       var checkbox = $("<input>", {
         type: "checkbox",
@@ -148,8 +149,37 @@ $(function () {
         text: `【${hardware} ${did}】${name}`, // 设定标签内容
       });
 
-      // 将复选框和标签添加到目标选择器元素中
-      $(selector).append(checkbox).append(label);
+      // 创建别名输入框
+      var aliasContainer = $("<span>", { class: "alias-container" });
+      var aliasLabel = $("<span>", { class: "alias-label", text: "别名:" });
+      var aliasInput = $("<input>", {
+        type: "text",
+        id: `alias_${did}`,
+        value: alias,
+        class: "device-alias-input",
+        placeholder: "可选",
+      });
+      aliasContainer.append(aliasLabel).append(aliasInput);
+
+      // 别名保存
+      aliasInput.on("change", function() {
+        var newAlias = $(this).val();
+        $.ajax({
+          type: "POST",
+          url: "/device/alias",
+          contentType: "application/json",
+          data: JSON.stringify({ did: did, alias: newAlias }),
+          success: function(res) {
+            console.log("Alias saved:", res);
+          },
+          error: function() {
+            alert("保存别名失败");
+          }
+        });
+      });
+
+      // 将复选框、标签和别名添加到目标选择器元素中
+      $(selector).append(checkbox).append(label).append(aliasContainer).append("<br>");
     });
   }
 
@@ -185,7 +215,7 @@ $(function () {
   fetchDeviceList(function (data, status) {
     console.log(data, status);
     var accountPassValid = data.account && data.password;
-    updateCheckbox("#mi_did", data.mi_did || "", data.device_list || [], accountPassValid);
+    updateCheckbox("#mi_did", data.mi_did || "", data.device_list || [], accountPassValid, data.devices || {});
 
     for (const key in data) {
       const $element = $("#" + key);
@@ -215,7 +245,7 @@ $(function () {
           var d = raw[did];
           return { miotDID: d.did || did, hardware: d.hardware || "", name: d.name || "" };
         });
-        updateCheckbox("#mi_did", currentMiDid, deviceList);
+        updateCheckbox("#mi_did", currentMiDid, deviceList, true);
       })
       .fail(function (xhr) {
         alert("更新设备列表失败: " + (xhr.responseJSON && xhr.responseJSON.detail ? xhr.responseJSON.detail : xhr.statusText));

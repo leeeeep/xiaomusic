@@ -56,7 +56,7 @@ class DeviceManager:
             self.device_id_did[device.device_id] = did
             group_name = did2group.get(did)
             if not group_name or group_name is None:
-                group_name = device.name
+                group_name = device.display_name
             self.groups.setdefault(group_name, []).append(device.device_id)
             self.devices[did] = XiaoMusicDevice(self.xiaomusic, device, group_name)
 
